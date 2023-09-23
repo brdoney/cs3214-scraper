@@ -2,9 +2,10 @@ import puppeteer from "puppeteer";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-// import readline from "readline/promises";
-// import readline from ""
 import readline from "node:readline/promises";
+import { createWriteStream } from "node:fs";
+import { finished } from "node:stream/promises";
+import { Readable } from "node:stream";
 
 const browser = await puppeteer.launch({ headless: "new" });
 
@@ -12,6 +13,7 @@ const browser = await puppeteer.launch({ headless: "new" });
 const baseUrl = new URL("https://courses.cs.vt.edu/cs3214/fall2023");
 const baseUrlString = baseUrl.toString();
 const linksStack = [baseUrlString];
+const filePromises = [];
 const visited = new Set();
 
 // The page we'll be using the load everything
@@ -40,7 +42,7 @@ function urlToPath(url) {
 
   // Put the file in folders based on its pathname, starting from cwd
   let cwd = process.cwd();
-  return path.join(cwd, u.pathname);
+  return path.join(cwd, "out", u.pathname);
 }
 
 /**
@@ -48,9 +50,14 @@ function urlToPath(url) {
  * @returns {Promise<boolean>} whether the HTML file for the url is on the disk
  */
 async function diskHasLink(url) {
-  const p = urlToPath(url);
   try {
-    await fs.access(`${p}.html`, fs.constants.F_OK);
+    // Add html suffix if there isn't a file extension
+    const p = urlToPath(url);
+    let filepath = isFile(url) ? p : `${p}.html`;
+
+    // Will throw exception if it doesn't exist
+    await fs.access(filepath, fs.constants.F_OK);
+
     return true;
   } catch {
     return false;
@@ -85,7 +92,28 @@ async function shouldUseCache() {
   }
 }
 
-async function addLinks(page, wasFromCache) {
+async function downloadFile(url, useCache) {
+  // Skip if we've already downloaded it
+  if (useCache && (await diskHasLink(url))) {
+    console.log(`  Skipping ${url}`);
+    return;
+  }
+
+  console.log(`  Downloading ${url}`);
+
+  const p = urlToPath(url);
+
+  // Make directories the file is in as needed
+  const parsed = path.parse(p);
+  await fs.mkdir(parsed.dir, { recursive: true });
+
+  const stream = createWriteStream(p);
+
+  const data = await fetch(url);
+  await finished(Readable.fromWeb(data.body).pipe(stream));
+}
+
+async function addLinks(page, wasFromCache, useCache) {
   const links = await page.$$("a");
   for (const link of links) {
     const destHandle = await link.getProperty("href");
@@ -115,6 +143,7 @@ async function addLinks(page, wasFromCache) {
       if (isFile(url.pathname)) {
         // This is a file, so we never want to visit it
         visited.add(res);
+        filePromises.push(downloadFile(res, useCache));
       } else if (!visited.has(res)) {
         // It's a URL that we haven't visited, so we'll need to scrape it
         linksStack.push(res);
@@ -167,13 +196,17 @@ while (linksStack.length > 0) {
 
   await loadPage(page, urlString, useLocal);
 
-  await addLinks(page, useLocal);
+  await addLinks(page, useLocal, useCache);
 
   if (!useCache || !inCache) {
     // We're either re-scraping everything or we aren't but this is a new file
-    saveFile(await page.content(), urlString);
+    filePromises.push(saveFile(await page.content(), urlString));
   }
 }
 
 await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
 await browser.close();
+
+console.log("Finishing remaining downloads...");
+await Promise.all(filePromises);
+console.log("Done");
