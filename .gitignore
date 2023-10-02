@@ -131,4 +131,5 @@ dist
 
 # Project output files
 visited.txt
+mappings.json
 out/

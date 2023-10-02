@@ -15,6 +15,7 @@ const baseUrlString = baseUrl.toString();
 const linksStack = [baseUrlString];
 const filePromises = [];
 const visited = new Set();
+const nameToUrlMappings = {};
 
 // The page we'll be using the load everything
 const page = await browser.newPage();
@@ -111,6 +112,8 @@ async function downloadFile(url, useCache) {
 
   const data = await fetch(url);
   await finished(Readable.fromWeb(data.body).pipe(stream));
+
+  nameToUrlMappings[parsed.base] = url
 }
 
 async function addLinks(page, wasFromCache, useCache) {
@@ -165,6 +168,7 @@ async function saveFile(html_content, url) {
 
   // Write the file contents
   await fs.writeFile(`${p}.html`, html_content);
+  nameToUrlMappings[`${parsed.base}.html`] = url
 }
 
 async function loadPage(page, url, useLocal) {
@@ -204,8 +208,10 @@ while (linksStack.length > 0) {
   }
 }
 
-await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
 await browser.close();
+
+await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
+await fs.writeFile("mappings.json", JSON.stringify(nameToUrlMappings));
 
 console.log("Finishing remaining downloads...");
 await Promise.all(filePromises);
