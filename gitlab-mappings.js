@@ -7,6 +7,9 @@ import child_process from "node:child_process";
 
 const exec = util.promisify(child_process.exec);
 
+// Path to the out directory, where each repository's files are stored
+const outPath = "./out";
+
 /**
  * @param {string} dir directory to start walking
  * @param {string} commitHash the hash for the current commit in the repository we're currently walking (or null if we're not walking one)
@@ -58,10 +61,13 @@ const PROTECT_REWRITES = false;
 // Then, use it with a simple async for loop
 for await (const { commitHash, path: p } of walk("./out/repos/")) {
   const gUrl = gitlabUrl(p, commitHash);
-  console.log(p, gUrl);
 
-  const parsed = path.parse(p);
-  const key = parsed.base;
+  // Path from the perspective of the out directory (i.e. removes `out/`)
+  let pFromOut = path.relative(outPath, p);
+
+  console.log(pFromOut, gUrl);
+
+  const key = pFromOut;
   // To catch repeated writes, like for `Makefile`, which has same name across repos
   if (PROTECT_REWRITES && Object.prototype.hasOwnProperty.call(content, key)) {
     throw new Error(`Attempt to overwrite repeated key: ${key}`);

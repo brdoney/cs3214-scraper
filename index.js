@@ -23,9 +23,11 @@ const visited = new Set();
 // Download promises so that we can make sure all downloads are finished before exiting
 const filePromises = [];
 
-// Mappings we build as we go through the files so that we can know where something 
+// Mappings we build as we go through the files so that we can know where something
 // came from after saving it to disk. This assumes that all of the filenames are unique
 const nameToUrlMappings = {};
+// Path to the out directory, where the website's files are stored
+const outPath = "./out";
 
 // The page we'll be using the load everything
 const page = await browser.newPage();
@@ -103,6 +105,17 @@ async function shouldUseCache() {
   }
 }
 
+/**
+ * Saves the mapping from path to url in the global `nameToUrlMappings` object.
+ * @param {string} p the path to the file that we're mapping
+ * @param {string} url the url where the file is accessible on the web
+ */
+function saveUrlMapping(p, url) {
+  // Path from the perspective of the out directory (i.e. removes `out/`)
+  let pFromOut = path.relative(outPath, p);
+  nameToUrlMappings[pFromOut] = url;
+}
+
 async function downloadFile(url, useCache) {
   // Skip if we've already downloaded it
   if (useCache && (await diskHasLink(url))) {
@@ -123,7 +136,7 @@ async function downloadFile(url, useCache) {
   const data = await fetch(url);
   await finished(Readable.fromWeb(data.body).pipe(stream));
 
-  nameToUrlMappings[parsed.base] = url
+  saveUrlMapping(p, url);
 }
 
 async function addLinks(page, wasFromCache, useCache) {
@@ -164,9 +177,9 @@ async function addLinks(page, wasFromCache, useCache) {
     } else if (url.pathname.startsWith(gitUrl.pathname)) {
       // Just take base of repository, not extra stuff like /cs3214-staff/cs3214-cush/blob/master/tests/basic.tst
       // Split will create one empty element before first /, then first two path segments
-      url.pathname = url.pathname.split("/").slice(0, 3).join("/")
+      url.pathname = url.pathname.split("/").slice(0, 3).join("/");
       url.hash = "";
-      url.search="";
+      url.search = "";
       repos.add(url.toString());
     }
   }
@@ -185,7 +198,8 @@ async function saveFile(html_content, url) {
 
   // Write the file contents
   await fs.writeFile(`${p}.html`, html_content);
-  nameToUrlMappings[`${parsed.base}.html`] = url
+
+  saveUrlMapping(p, url);
 }
 
 async function loadPage(page, url, useLocal) {

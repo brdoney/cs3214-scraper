@@ -1,0 +1,9 @@
+.git
+.gitignore
+.gitattributes
+__init__.py
+*.svg
+*.tar
+*.gz
+*.mp4
+*.out
