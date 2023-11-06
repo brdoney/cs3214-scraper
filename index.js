@@ -12,9 +12,19 @@ const browser = await puppeteer.launch({ headless: "new" });
 // Website we'll be scraping
 const baseUrl = new URL("https://courses.cs.vt.edu/cs3214/fall2023");
 const baseUrlString = baseUrl.toString();
+
+// Git URL where code is hosted, so we know what is safe to clone
+const gitUrl = new URL("https://git.cs.vt.edu/cs3214-staff");
+const repos = new Set();
+
 const linksStack = [baseUrlString];
-const filePromises = [];
 const visited = new Set();
+
+// Download promises so that we can make sure all downloads are finished before exiting
+const filePromises = [];
+
+// Mappings we build as we go through the files so that we can know where something 
+// came from after saving it to disk. This assumes that all of the filenames are unique
 const nameToUrlMappings = {};
 
 // The page we'll be using the load everything
@@ -151,6 +161,13 @@ async function addLinks(page, wasFromCache, useCache) {
         // It's a URL that we haven't visited, so we'll need to scrape it
         linksStack.push(res);
       }
+    } else if (url.pathname.startsWith(gitUrl.pathname)) {
+      // Just take base of repository, not extra stuff like /cs3214-staff/cs3214-cush/blob/master/tests/basic.tst
+      // Split will create one empty element before first /, then first two path segments
+      url.pathname = url.pathname.split("/").slice(0, 3).join("/")
+      url.hash = "";
+      url.search="";
+      repos.add(url.toString());
     }
   }
 }
@@ -212,6 +229,7 @@ await browser.close();
 
 await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
 await fs.writeFile("mappings.json", JSON.stringify(nameToUrlMappings));
+await fs.writeFile("repos.txt", Array.from(repos).join("\n"));
 
 console.log("Finishing remaining downloads...");
 await Promise.all(filePromises);
