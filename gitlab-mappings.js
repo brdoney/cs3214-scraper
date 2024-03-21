@@ -7,8 +7,7 @@ import child_process from "node:child_process";
 
 const exec = util.promisify(child_process.exec);
 
-// Path to the out directory, where each repository's files are stored
-const outPath = "./out";
+const config = JSON.parse(await fs.readFile("./config.json"));
 
 /**
  * @param {string} dir directory to start walking
@@ -16,7 +15,20 @@ const outPath = "./out";
  * @returns {AsyncIterable<{commitHash: string, path: string}>} the files found
  */
 async function* walk(dir, commitHash = null) {
-  for await (const d of await fs.opendir(dir)) {
+  let iter;
+  try {
+    iter = await fs.opendir(dir);
+  } catch {
+    console.error(`Could not open "${dir}". Did you run repos.sh?`);
+    return;
+  }
+
+  for await (const d of iter) {
+    if (config.exclude.includes(d.name)) {
+      // We don't care about things in .git
+      continue;
+    }
+
     const entry = path.join(dir, d.name);
     if (d.isDirectory()) {
       try {
@@ -37,8 +49,6 @@ async function* walk(dir, commitHash = null) {
   }
 }
 
-const GITLAB_PREFIX = "https://git.cs.vt.edu/cs3214-staff";
-
 /**
  * @param {string} filePath the full path to the file to get the link for
  * @param {string} commitHash the commit hash, in its (full) long form
@@ -48,28 +58,23 @@ function gitlabUrl(filePath, commitHash) {
   const parts = filePath.split("/");
   const repo = parts[2];
   const file = parts.slice(3).join("/");
-  return `${GITLAB_PREFIX}/${repo}/-/blob/${commitHash}/${file}`;
+  return `${config.git}/${repo}/-/blob/${commitHash}/${file}`;
 }
 
 /** @type {Object.<string, string>} */
-const content = JSON.parse(await fs.readFile("./mappings.json"));
+const content = JSON.parse(await fs.readFile("./website-mappings.json"));
 
-// console.log(content);
-
-const PROTECT_REWRITES = false;
-
-// Then, use it with a simple async for loop
-for await (const { commitHash, path: p } of walk("./out/repos/")) {
+for await (const { commitHash, path: p } of walk(`${config.out}/repos/`)) {
   const gUrl = gitlabUrl(p, commitHash);
 
   // Path from the perspective of the out directory (i.e. removes `out/`)
-  let pFromOut = path.relative(outPath, p);
+  let pFromOut = path.relative(config.out, p);
 
   console.log(pFromOut, gUrl);
 
   const key = pFromOut;
-  // To catch repeated writes, like for `Makefile`, which has same name across repos
-  if (PROTECT_REWRITES && Object.prototype.hasOwnProperty.call(content, key)) {
+  // To catch repeated writes, shouldn't happen but just in case
+  if (Object.prototype.hasOwnProperty.call(content, key)) {
     throw new Error(`Attempt to overwrite repeated key: ${key}`);
   }
   content[key] = gUrl;

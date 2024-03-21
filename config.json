@@ -1,0 +1,6 @@
+{
+  "course": "https://courses.cs.vt.edu/cs3214/spring2024",
+  "git": "https://git.cs.vt.edu/cs3214-staff",
+  "out": "./out",
+  "exclude": [".git", ".gitignore"]
+}

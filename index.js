@@ -7,14 +7,16 @@ import { createWriteStream } from "node:fs";
 import { finished } from "node:stream/promises";
 import { Readable } from "node:stream";
 
+const config = JSON.parse(await fs.readFile("./config.json"));
+
 const browser = await puppeteer.launch({ headless: "new" });
 
 // Website we'll be scraping
-const baseUrl = new URL("https://courses.cs.vt.edu/cs3214/fall2023");
+const baseUrl = new URL(config.course);
 const baseUrlString = baseUrl.toString();
 
 // Git URL where code is hosted, so we know what is safe to clone
-const gitUrl = new URL("https://git.cs.vt.edu/cs3214-staff");
+const gitUrl = new URL(config.git);
 const repos = new Set();
 
 const linksStack = [baseUrlString];
@@ -242,7 +244,7 @@ while (linksStack.length > 0) {
 await browser.close();
 
 await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
-await fs.writeFile("mappings.json", JSON.stringify(nameToUrlMappings));
+await fs.writeFile("website-mappings.json", JSON.stringify(nameToUrlMappings));
 await fs.writeFile("repos.txt", Array.from(repos).join("\n"));
 
 console.log("Finishing remaining downloads...");
