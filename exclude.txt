@@ -3,7 +3,13 @@
 .gitattributes
 __init__.py
 *.svg
+*.png
 *.tar
 *.gz
 *.mp4
 *.out
+*.hprof
+**/ex0/zero.txt
+**/ex0/random.txt
+**/ex0/utf32-demo.txt
+**/ex0/utf8-demo.txt
