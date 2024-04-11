@@ -18,6 +18,6 @@ for (const map of mappings) {
 }
 
 await fs.writeFile(
-  "website-mappings.json",
+  "full-mappings.json",
   JSON.stringify(full_mappings, null, 2),
 );
