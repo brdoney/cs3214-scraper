@@ -199,9 +199,10 @@ async function saveFile(html_content, url) {
   await fs.mkdir(parsed.dir, { recursive: true });
 
   // Write the file contents
-  await fs.writeFile(`${p}.html`, html_content);
+  const filepath = `${p}.html`;
+  await fs.writeFile(filepath, html_content);
 
-  saveUrlMapping(p, url);
+  saveUrlMapping(filepath, url);
 }
 
 async function loadPage(page, url, useLocal) {
@@ -244,7 +245,10 @@ while (linksStack.length > 0) {
 await browser.close();
 
 await fs.writeFile("visited.txt", Array.from(visited).join("\n"));
-await fs.writeFile("website-mappings.json", JSON.stringify(nameToUrlMappings));
+await fs.writeFile(
+  "website-mappings.json",
+  JSON.stringify(nameToUrlMappings, null, 2),
+);
 await fs.writeFile("repos.txt", Array.from(repos).join("\n"));
 
 console.log("Finishing remaining downloads...");

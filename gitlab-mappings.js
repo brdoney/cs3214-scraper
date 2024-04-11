@@ -62,7 +62,7 @@ function gitlabUrl(filePath, commitHash) {
 }
 
 /** @type {Object.<string, string>} */
-const content = JSON.parse(await fs.readFile("./website-mappings.json"));
+const mappings = {};
 
 for await (const { commitHash, path: p } of walk(`${config.out}/repos/`)) {
   const gUrl = gitlabUrl(p, commitHash);
@@ -74,10 +74,10 @@ for await (const { commitHash, path: p } of walk(`${config.out}/repos/`)) {
 
   const key = pFromOut;
   // To catch repeated writes, shouldn't happen but just in case
-  if (Object.prototype.hasOwnProperty.call(content, key)) {
+  if (Object.prototype.hasOwnProperty.call(mappings, key)) {
     throw new Error(`Attempt to overwrite repeated key: ${key}`);
   }
-  content[key] = gUrl;
+  mappings[key] = gUrl;
 }
 
-fs.writeFile("./full-mappings.json", JSON.stringify(content));
+await fs.writeFile("gitlab-mappings.json", JSON.stringify(mappings, null, 2));

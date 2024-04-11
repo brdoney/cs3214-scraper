@@ -5,8 +5,11 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npm run website && npm run gitlab && npm run combine",
+    "website": "node website-scraper.js",
+    "gitlab": "./repos.sh && node gitlab-mappings.js",
+    "combine": "node combine-mappings.js",
+    "clean": "rm -rf ./out/ && rm website-mappings.json && rm gitlab-mappings.json"
   },
   "author": "",
   "license": "ISC",

@@ -131,7 +131,8 @@ dist
 
 # Project output files
 visited.txt
-mappings.json
+website-mappings.json
+gitlab-mappings.json
 full-mappings.json
 out/
 repos.txt
