@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import readline from "node:readline/promises";
 
-const mappings = JSON.parse(await fs.readFile("./full-mappings.json"));
+const DEST = "/home/grads/brendandoney/thesis/disdoc/source_documents/";
+const config = JSON.parse(await fs.readFile("./config.json"));
 
 const blacklist = [
   // Duplicated by repos
@@ -74,9 +76,6 @@ const exercises = [
 /** @type {categories[]} */
 // const projects = [categories.p1, categories.p2, categories.p3, categories.p4];
 
-/** @type {Map<categories, string[]>} */
-const groups = new Map(Object.values(categories).map((cat) => [cat, []]));
-
 /** @type {[string, categories][]} */
 const repoMap = [
   // Repos
@@ -148,31 +147,87 @@ const groupMap = [
   ...administrative.map((key) => [key, categories.admin]),
 ];
 
-const notAdded = [];
-
-function addToGroup(file) {
+/**
+ * Find and add the given file to a single category in the groups map.
+ * @param {Map<categories, string[]>} groups the groups map to add to
+ * @param {string} file the file to add
+ * @returns {boolean} whether the file was added to a group
+ */
+function addToGroup(groups, file) {
   if (isBlacklisted(file)) {
     console.log("Blacklisted", file);
     return;
   }
 
-  // Whether we added the file to one or more groups
-  let added = false;
-
   for (const [key, dest] of groupMap) {
     if (file.includes(key)) {
       groups.get(dest).push(file);
-      added = true;
+      return true;
     }
   }
+  return false;
+}
 
-  if (!added) {
-    notAdded.push(file);
+/** @type {{string: string}} */
+const mappings = JSON.parse(await fs.readFile("./full-mappings.json"));
+
+function getGroups() {
+  /** @type {Map<categories, string[]>} */
+  const groups = new Map(Object.values(categories).map((cat) => [cat, []]));
+
+  /** @type {string[]} */
+  const notAdded = [];
+
+  for (const file of Object.keys(mappings)) {
+    const added = addToGroup(groups, file);
+    if (!added) {
+      notAdded.push(file);
+    }
+  }
+  console.log("Groups:", groups);
+  console.log("Not added:", notAdded);
+
+  return groups;
+}
+
+async function migrate() {
+  const groups = getGroups();
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const answer = await rl.question(
+    `Are you sure you want to overwrite ${DEST}? [y/N] `,
+  );
+  rl.close();
+
+  if (answer.toLowerCase() !== "y") {
+    console.log("Aborting");
+    return;
+  }
+
+  console.log(`Removing '${DEST}'...`);
+  await fs.rm(DEST, { recursive: true, force: true });
+
+  console.log(`Copying files...`);
+  for (const [group, files] of groups.entries()) {
+    // Make the group directory if it doesn't already exist
+    await fs.mkdir(path.join(DEST, group), { recursive: true });
+
+    // Now fill in the group with the docs
+    for (const file of files) {
+      const src = path.join(config.out, file);
+      const dest = path.join(DEST, group, file);
+
+      console.log(`Copying ${src} to ${dest}`);
+
+      // Make parent directories if they don't exist
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await fs.cp(src, dest);
+    }
   }
 }
 
-for (const file of Object.keys(mappings)) {
-  addToGroup(file);
-}
-console.log("Groups:", groups);
-console.log("Not added:", notAdded);
+migrate();

@@ -5,10 +5,11 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "npm run website && npm run gitlab && npm run combine",
+    "start": "npm run website && npm run gitlab && npm run combine && npm run migrate",
     "website": "node website-scraper.js",
     "gitlab": "./repos.sh && node gitlab-mappings.js",
     "combine": "node combine-mappings.js",
+    "migrate": "node migrate.js",
     "clean": "rm -rf ./out/ && rm website-mappings.json && rm gitlab-mappings.json"
   },
   "author": "",
