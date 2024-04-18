@@ -18,6 +18,8 @@ const blacklist = [
   "cs3214/spring2024/exercises.html",
   "cs3214/spring2024/officehours.html",
   "cs3214/spring2024/login.html",
+  "repos/pserv/tests/test_root_data",
+  "repos/pserv/svelte-app",
   // Things that probably shouldn't exist
   "cs3214/spring2024/documents.html",
 ];
@@ -27,7 +29,16 @@ const blacklistFilename = [
   ".gitattributes",
   "__init__.py",
 ];
-const blacklistExt = [".svg", ".png", ".jpg", ".tar", ".gz", ".mp4", ".hprof"];
+const blacklistExt = [
+  ".svg",
+  ".png",
+  ".jpg",
+  ".gif",
+  ".tar",
+  ".gz",
+  ".mp4",
+  ".hprof",
+];
 
 /**
  * Check whether a given path is blacklisted.
@@ -83,6 +94,7 @@ const repoMap = [
   ["repos/threadlab", categories.p2],
   ["repos/malloclab", categories.p3],
   ["repos/simula24", categories.ex3],
+  ["repos/pserv", categories.p4],
 ];
 
 const projectMap = [
@@ -97,6 +109,7 @@ const projectMap = [
   ["/projects/cush-handout.pdf", categories.p1],
   ["/projects/threadpool-handout.pdf", categories.p2],
   ["/projects/malloclab-cs3214.pdf", categories.p3],
+  ["/projects/pserver-handout.pdf", categories.p4]
 ];
 
 /** @type {[string, categories][]} */
@@ -150,13 +163,15 @@ const groupMap = [
 /**
  * Find and add the given file to a single category in the groups map.
  * @param {Map<categories, string[]>} groups the groups map to add to
+ * @param {string[]} blacklist the blacklist
  * @param {string} file the file to add
  * @returns {boolean} whether the file was added to a group
  */
-function addToGroup(groups, file) {
+function addToGroup(groups, blacklist, file) {
   if (isBlacklisted(file)) {
     console.log("Blacklisted", file);
-    return;
+    blacklist.push(file);
+    return true;
   }
 
   for (const [key, dest] of groupMap) {
@@ -177,9 +192,11 @@ function getGroups() {
 
   /** @type {string[]} */
   const notAdded = [];
+  /** @type {string[]} */
+  const blacklist = [];
 
   for (const file of Object.keys(mappings)) {
-    const added = addToGroup(groups, file);
+    const added = addToGroup(groups, blacklist, file);
     if (!added) {
       notAdded.push(file);
     }
